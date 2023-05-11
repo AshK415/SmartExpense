@@ -1,3 +1,6 @@
+import 'dart:convert';
+
+import 'package:device_apps/device_apps.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
@@ -52,7 +55,7 @@ class MyHomePage extends HookWidget {
               debugPrint('Barcode found! ${barcode.rawValue}');
             }
             if (!found.value) {
-              HapticFeedback.heavyImpact();
+              HapticFeedback.vibrate();
               found.value = true;
               Navigator.push(
                 context,
@@ -61,16 +64,6 @@ class MyHomePage extends HookWidget {
                       PaymentPage(upiLink: barcodes.first.rawValue!),
                 ),
               ).then((value) => found.value = false);
-              // HapticFeedback.mediumImpact().then((value) {
-              //   found.value = true;
-              //   Navigator.push(
-              //     context,
-              //     MaterialPageRoute(
-              //       builder: (_) =>
-              //           PaymentPage(upiLink: barcodes.first.rawValue!),
-              //     ),
-              //   ).then((value) => found.value = false);
-              // });
             }
 
             // ignore: use_build_context_synchronously
@@ -81,15 +74,102 @@ class MyHomePage extends HookWidget {
 
 class PaymentPage extends StatelessWidget {
   final String upiLink;
+  static const platform = MethodChannel('example.com/channel');
 
   const PaymentPage({Key? key, required this.upiLink}) : super(key: key);
+
+  // Future<List<Application>> getApps() {
+  //   return DeviceApps.getInstalledApplications(
+  //       includeAppIcons: true, onlyAppsWithLaunchIntent: true);
+  // }
+
+  Future<List<Map<dynamic, dynamic>>?> getApps() async {
+    try {
+      return platform.invokeListMethod('getApps');
+    } on PlatformException catch (e) {
+      print(e);
+      return Future.value(List.empty());
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(),
-      body: Center(
-        child: Text(upiLink),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: FutureBuilder(
+            future: getApps(),
+            builder:
+                (ctx, AsyncSnapshot<List<Map<dynamic, dynamic>>?> snapshot) {
+              if (snapshot.hasData) {
+                final List<Map<dynamic, dynamic>>? apps = snapshot.data;
+                //print(apps);
+                if (apps != null) {
+                  return Column(
+                    children: [
+                      Center(
+                        child: Text(upiLink),
+                      ),
+                      const SizedBox(
+                        height: 16,
+                      ),
+                      Expanded(
+                        child: ListView.builder(
+                            itemCount: apps.length,
+                            shrinkWrap: true,
+                            itemBuilder: (c, i) => _appIcon(apps[i])),
+                      )
+                    ],
+                  );
+                } else {
+                  return const Center(
+                    child: Text('No apps installed'),
+                  );
+                }
+              } else if (snapshot.hasError) {
+                return const Center(
+                  child: Text('Got some error'),
+                );
+              }
+              return const Center(
+                child: CircularProgressIndicator(),
+              );
+            }),
+      ),
+    );
+  }
+
+  Uint8List convertImage(String str) {
+    final List<int> codeUnits = str.codeUnits;
+    final Uint8List uint8list = Uint8List.fromList(codeUnits);
+    return uint8list;
+  }
+
+  Widget _appIcon(Map<dynamic, dynamic> app) {
+    return GestureDetector(
+      onTap: () {
+        //app.openApp();
+      },
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          // Builder(
+          //     builder: (c) => app['icon'] != null
+          //         ? Image.memory(
+          //             base64.decode(app['icon']),
+          //             width: 48,
+          //             height: 48,
+          //           )
+          //         : Container()),
+          Container(
+            alignment: Alignment.center,
+            child: Text(
+              app['packageName'],
+              textAlign: TextAlign.center,
+            ),
+          )
+        ],
       ),
     );
   }
