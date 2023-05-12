@@ -17,21 +17,9 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Flutter Demo',
       theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // Try running your application with "flutter run". You'll see the
-        // application has a blue toolbar. Then, without quitting the app, try
-        // changing the primarySwatch below to Colors.green and then invoke
-        // "hot reload" (press "r" in the console where you ran "flutter run",
-        // or simply save your changes to "hot reload" in a Flutter IDE).
-        // Notice that the counter didn't reset back to zero; the application
-        // is not restarted.
         primarySwatch: Colors.blue,
       ),
-      home: const PaymentPage(
-        upiLink:
-            'upi://pay?pa=7898026293@ybl&pn=******6293&mc=0000&mode=00&purpose=00&cu=INR&am=500',
-      ),
+      home: const MyHomePage(),
     );
   }
 }
@@ -95,6 +83,9 @@ class PaymentPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final amountFieldController = TextEditingController(text: '0');
+    final descriptionFieldController = TextEditingController(text: '');
+    final payee = upiLink.split('?').last.split('&').first.split('=').last;
     return Scaffold(
       appBar: AppBar(),
       body: Padding(
@@ -109,21 +100,75 @@ class PaymentPage extends StatelessWidget {
                 if (apps != null) {
                   return Column(
                     children: [
-                      Center(
-                        child: Text(upiLink),
+                      const SizedBox(height: 8),
+                      const Text('Paying to',
+                          style: TextStyle(
+                              fontSize: 18, fontWeight: FontWeight.bold)),
+                      const SizedBox(
+                        height: 8,
+                      ),
+                      Text(
+                        payee,
+                        style: const TextStyle(
+                            fontWeight: FontWeight.w500,
+                            color: Colors.blueGrey),
                       ),
                       const SizedBox(
                         height: 16,
+                      ),
+                      TextField(
+                        controller: amountFieldController,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(
+                          hintText: '0.0',
+                          label: Text(
+                            'Amount',
+                            style: TextStyle(fontWeight: FontWeight.w500),
+                          ),
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                      const SizedBox(
+                        height: 8,
+                      ),
+                      TextField(
+                        controller: descriptionFieldController,
+                        keyboardType: TextInputType.text,
+                        decoration: const InputDecoration(
+                            label: Text(
+                              'Description',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            hintText: 'Payment description',
+                            border: OutlineInputBorder()),
+                      ),
+                      const SizedBox(
+                        height: 16,
+                      ),
+                      const Text(
+                        'Pay Using',
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 16),
+                      ),
+                      const SizedBox(
+                        height: 8,
                       ),
                       SizedBox(
                         height: 90,
                         child: Scrollbar(
                           thickness: 0,
                           child: ListView.builder(
-                              scrollDirection: Axis.horizontal,
-                              itemCount: apps.length,
-                              shrinkWrap: true,
-                              itemBuilder: (c, i) => _appIcon(apps[i])),
+                            scrollDirection: Axis.horizontal,
+                            itemCount: apps.length,
+                            shrinkWrap: true,
+                            itemBuilder: (c, i) => _appIcon(
+                                apps[i],
+                                amountFieldController,
+                                descriptionFieldController,
+                                context),
+                          ),
                         ),
                       )
                     ],
@@ -152,13 +197,34 @@ class PaymentPage extends StatelessWidget {
     return uint8list;
   }
 
-  Widget _appIcon(Map<dynamic, dynamic> app) {
+  void _showMessage(BuildContext context, String content, String type) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          content,
+          style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: type == 'Error' ? Colors.red : Colors.white),
+        ),
+      ),
+    );
+  }
+
+  Widget _appIcon(Map<dynamic, dynamic> app, TextEditingController amountCtrl,
+      TextEditingController descCtrl, BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(right: 8.0),
       child: GestureDetector(
         onTap: () async {
-          platform.invokeMethod('initiateTransaction',
-              {'package': app['packageName'], 'url': upiLink});
+          if (amountCtrl.text != '0') {
+            final finalUrl = '$upiLink&am=${amountCtrl.text}';
+            platform.invokeMethod('initiateTransaction', {
+              'package': app['packageName'],
+              'url': finalUrl
+            }).then((value) => _showMessage(context, value, 'Success'));
+          } else {
+            _showMessage(context, 'Amount Required', 'Error');
+          }
         },
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,

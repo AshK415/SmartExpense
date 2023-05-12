@@ -4,6 +4,7 @@ import androidx.annotation.NonNull
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
+import io.flutter.plugin.common.MethodChannel.Result
 import android.net.Uri
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -15,6 +16,27 @@ import android.util.Log
 import java.io.ByteArrayOutputStream
 
 class MainActivity: FlutterActivity() {
+
+    private lateinit var mResult: Result
+    private var requestCodeNumber = 201119
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?): Unit {
+        if (requestCodeNumber == requestCode && mResult != null) {
+            if (data != null) {
+                try {
+                    val response = data.getStringExtra("response")!!
+                    this.mResult?.success(response)
+                } catch (ex: Exception) {
+                    this.mResult?.error("invalid_response", ex.toString(),null)
+                }
+            } else {
+                this.mResult?.success("user_cancelled")
+            }
+        }
+        return;
+    }
+
+
     override fun configureFlutterEngine(@NonNull flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
 
@@ -31,8 +53,6 @@ class MainActivity: FlutterActivity() {
             drawable.draw(canvas)
             return bmp
         }
-
-        Registrar()
 
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "example.com/channel").setMethodCallHandler {
             call, result ->
@@ -64,6 +84,7 @@ class MainActivity: FlutterActivity() {
                 
              }
              else if(call.method=="initiateTransaction"){
+                mResult = result
                 val app = call.argument("package") ?: ""
                 val url = call.argument("url") ?: ""
                 try{
@@ -73,8 +94,8 @@ class MainActivity: FlutterActivity() {
                     if(intent.resolveActivity(getPackageManager()!!)==null){
                         result.error("Check the issue", "Activity Unavailable", 400)
                     }
-                    getActivity()?.startActivityForResult(intent, 201119)
-                    result.success("Done")
+                    getActivity()?.startActivityForResult(intent, requestCodeNumber)
+                    //result.success("Done")
                 } catch(ex: Exception){
                     Log.e("UPIPAY", ex.toString())
                     result.error("Check the issue", ex.toString(), 400)
