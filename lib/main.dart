@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flex_color_scheme/flex_color_scheme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
@@ -16,9 +17,8 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Flutter Demo',
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-      ),
+      theme: FlexThemeData.light(scheme: FlexScheme.mandyRed),
+      darkTheme: FlexThemeData.dark(scheme: FlexScheme.mandyRed),
       home: const MyHomePage(),
     );
   }
@@ -39,7 +39,7 @@ class MyHomePage extends HookWidget {
           controller: cameraController,
           onDetect: (capture) {
             final List<Barcode> barcodes = capture.barcodes;
-            final Uint8List? image = capture.image;
+            //final Uint8List? image = capture.image;
             for (final barcode in barcodes) {
               debugPrint('Barcode found! ${barcode.rawValue}');
             }
@@ -54,8 +54,6 @@ class MyHomePage extends HookWidget {
                 ),
               ).then((value) => found.value = false);
             }
-
-            // ignore: use_build_context_synchronously
           }),
     );
   }
@@ -66,11 +64,6 @@ class PaymentPage extends StatelessWidget {
   static const platform = MethodChannel('example.com/channel');
 
   const PaymentPage({Key? key, required this.upiLink}) : super(key: key);
-
-  // Future<List<Application>> getApps() {
-  //   return DeviceApps.getInstalledApplications(
-  //       includeAppIcons: true, onlyAppsWithLaunchIntent: true);
-  // }
 
   Future<List<Map<dynamic, dynamic>>?> getApps() async {
     try {
@@ -83,7 +76,7 @@ class PaymentPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final amountFieldController = TextEditingController(text: '0');
+    final amountFieldController = TextEditingController(text: '');
     final descriptionFieldController = TextEditingController(text: '');
     final payee = upiLink.split('?').last.split('&').first.split('=').last;
     return Scaffold(
@@ -96,7 +89,6 @@ class PaymentPage extends StatelessWidget {
                 (ctx, AsyncSnapshot<List<Map<dynamic, dynamic>>?> snapshot) {
               if (snapshot.hasData) {
                 final List<Map<dynamic, dynamic>>? apps = snapshot.data;
-                //print(apps);
                 if (apps != null) {
                   return Column(
                     children: [
@@ -204,7 +196,9 @@ class PaymentPage extends StatelessWidget {
           content,
           style: TextStyle(
               fontWeight: FontWeight.bold,
-              color: type == 'Error' ? Colors.red : Colors.white),
+              color: type == 'Error'
+                  ? Colors.red
+                  : Theme.of(context).colorScheme.secondary),
         ),
       ),
     );
@@ -216,7 +210,7 @@ class PaymentPage extends StatelessWidget {
       padding: const EdgeInsets.only(right: 8.0),
       child: GestureDetector(
         onTap: () async {
-          if (amountCtrl.text != '0') {
+          if (amountCtrl.text.isNotEmpty && amountCtrl.text != '0') {
             final finalUrl = '$upiLink&am=${amountCtrl.text}';
             platform.invokeMethod('initiateTransaction', {
               'package': app['packageName'],
