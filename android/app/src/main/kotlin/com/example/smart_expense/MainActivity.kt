@@ -17,6 +17,7 @@ import java.io.ByteArrayOutputStream
 class MainActivity: FlutterActivity() {
     override fun configureFlutterEngine(@NonNull flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+
         fun encodeToBase64(image: Bitmap): String? {
             val byteArrayOS = ByteArrayOutputStream()
             image.compress(Bitmap.CompressFormat.PNG, 100, byteArrayOS)
@@ -30,6 +31,8 @@ class MainActivity: FlutterActivity() {
             drawable.draw(canvas)
             return bmp
         }
+
+        Registrar()
 
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "example.com/channel").setMethodCallHandler {
             call, result ->
@@ -49,16 +52,33 @@ class MainActivity: FlutterActivity() {
                         } else {
                            null
                         }
-                        val appName = it.activityInfo.nonLocalizedLabel.toString()
-
-                        mapOf("packageName" to packageName, "icon" to icon, "appName" to appName)
+                        //val appName = it.activityInfo.nonLocalizedLabel?.toString()
+                        val appName = getPackageManager()?.getApplicationLabel(getPackageManager()?.getApplicationInfo(packageName, PackageManager.GET_META_DATA)!!)
+                        mapOf("packageName" to packageName, "icon" to icon, "appName" to appName!!)
                     }
                     result.success(activityResponse)
                 } catch(ex: Exception){
-                    //Log.d("MainActivity", ex)
-                    result.error("error occured", "Check the issue", null)
+                    Log.e("UPIPAY", ex.message!!)
+                    result.error("Check the issue",ex.message!!,400)
                 }
                 
+             }
+             else if(call.method=="initiateTransaction"){
+                val app = call.argument("package") ?: ""
+                val url = call.argument("url") ?: ""
+                try{
+                    val uri = Uri.parse(url)
+                    val intent = Intent(Intent.ACTION_VIEW, uri)
+                    intent.setPackage(app)
+                    if(intent.resolveActivity(getPackageManager()!!)==null){
+                        result.error("Check the issue", "Activity Unavailable", 400)
+                    }
+                    getActivity()?.startActivityForResult(intent, 201119)
+                    result.success("Done")
+                } catch(ex: Exception){
+                    Log.e("UPIPAY", ex.toString())
+                    result.error("Check the issue", ex.toString(), 400)
+                }
              }
              else{
                 result.notImplemented()

@@ -1,6 +1,4 @@
 import 'dart:convert';
-
-import 'package:device_apps/device_apps.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
@@ -30,7 +28,10 @@ class MyApp extends StatelessWidget {
         // is not restarted.
         primarySwatch: Colors.blue,
       ),
-      home: const MyHomePage(),
+      home: const PaymentPage(
+        upiLink:
+            'upi://pay?pa=7898026293@ybl&pn=******6293&mc=0000&mode=00&purpose=00&cu=INR&am=500',
+      ),
     );
   }
 }
@@ -85,7 +86,7 @@ class PaymentPage extends StatelessWidget {
 
   Future<List<Map<dynamic, dynamic>>?> getApps() async {
     try {
-      return platform.invokeListMethod('getApps');
+      return platform.invokeListMethod('getApps', {});
     } on PlatformException catch (e) {
       print(e);
       return Future.value(List.empty());
@@ -114,11 +115,16 @@ class PaymentPage extends StatelessWidget {
                       const SizedBox(
                         height: 16,
                       ),
-                      Expanded(
-                        child: ListView.builder(
-                            itemCount: apps.length,
-                            shrinkWrap: true,
-                            itemBuilder: (c, i) => _appIcon(apps[i])),
+                      SizedBox(
+                        height: 90,
+                        child: Scrollbar(
+                          thickness: 0,
+                          child: ListView.builder(
+                              scrollDirection: Axis.horizontal,
+                              itemCount: apps.length,
+                              shrinkWrap: true,
+                              itemBuilder: (c, i) => _appIcon(apps[i])),
+                        ),
                       )
                     ],
                   );
@@ -147,29 +153,33 @@ class PaymentPage extends StatelessWidget {
   }
 
   Widget _appIcon(Map<dynamic, dynamic> app) {
-    return GestureDetector(
-      onTap: () {
-        //app.openApp();
-      },
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          // Builder(
-          //     builder: (c) => app['icon'] != null
-          //         ? Image.memory(
-          //             base64.decode(app['icon']),
-          //             width: 48,
-          //             height: 48,
-          //           )
-          //         : Container()),
-          Container(
-            alignment: Alignment.center,
-            child: Text(
-              app['packageName'],
-              textAlign: TextAlign.center,
-            ),
-          )
-        ],
+    return Padding(
+      padding: const EdgeInsets.only(right: 8.0),
+      child: GestureDetector(
+        onTap: () async {
+          platform.invokeMethod('initiateTransaction',
+              {'package': app['packageName'], 'url': upiLink});
+        },
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Builder(
+                builder: (c) => app['icon'] != null
+                    ? Image.memory(
+                        base64.decode(app['icon']),
+                        width: 64,
+                        height: 64,
+                      )
+                    : Container()),
+            Container(
+              alignment: Alignment.center,
+              child: Text(
+                app['appName'] ?? app['packageName'],
+                textAlign: TextAlign.center,
+              ),
+            )
+          ],
+        ),
       ),
     );
   }
